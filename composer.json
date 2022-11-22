@@ -1,17 +1,20 @@
 {
-    "name": "mpociot/slack-client",
+    "name": "keldon2295/slack-client",
     "keywords": ["slack", "api", "realtime"],
     "license": "MIT",
     "description": "A better Slack client, with RTM API support",
     "authors": [{
         "name": "Stephen Coakley",
         "email": "me@stephencoakley.com"
+    },{
+        "name": "bradley flynn",
+        "email": "bradleyflynn@outlook.com"
     }],
     "require": {
         "php": ">=5.5",
         "mpociot/phpws": "^2.0",
         "evenement/evenement": "~3.0",
-        "guzzlehttp/guzzle": "~6.0",
+        "guzzlehttp/guzzle": "~6.0 || ^7.0",
         "react/event-loop": "^1.0 || ^0.5 || ^0.4",
         "react/promise": "^2.2",
         "react/promise-timer": "^1.2.1"

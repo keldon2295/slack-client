@@ -148,6 +148,7 @@ class RealTimeClient extends ApiClient
         // then wait for the connection to be ready.
         ->then(function () use ($deferred) {
             $this->once('hello', function () use ($deferred) {
+                $this->getUsersData();
                 $deferred->resolve();
             });
 
@@ -547,5 +548,138 @@ class RealTimeClient extends ApiClient
                 }
             }
         }
+    }
+
+    public function getUsersData()
+    {
+        // $results = app('\App\Http\Controllers\Slack\Base')->getUsers();
+        $results = $this->customGetUsers();
+
+        foreach ($results['users'] as $data) {
+            $data = (array) $data;
+            $this->users[$data['id']] = new User($this, $data);
+        }
+        foreach ($results['bots'] as $data) {
+            $data = (array) $data;
+            $this->bots[$data['id']] = new Bot($this, $data);
+        }
+
+        $results = $this->customGetChannels('public_channel');
+        foreach ($results as $data) {
+            $data = (array) $data;
+            $this->channels[$data['id']] = new Channel($this, $data);
+        }
+
+        $results = $this->customGetChannels('private_channel');
+        foreach ($results as $data) {
+            $data = (array) $data;
+            $this->groups[$data['id']] = new Group($this, $data);
+        }
+
+        $results = $this->customGetChannels('mpim,im');
+        foreach ($results as $data) {
+            $data = (array) $data;
+            $this->dms[$data['id']] = new DirectMessageChannel($this, $data);
+        }
+
+    }
+    public function customGetUsers(): array
+    {
+        $client = new \GuzzleHttp\Client();
+        $results = [];
+        $more = true;
+        $url = self::BASE_URL . "users.list" . "?limit=1000";
+        $i = 0;
+        try {
+            while ($more == true) {
+
+                $res = $client->request('GET', $url, [
+                    'headers' => [
+                        'Content-type' => 'application/json',
+                        'Authorization' => 'Bearer ' . $this->token,
+                    ],
+                    'http_errors' => false,
+                ]);
+                $statusCode = $res->getStatusCode();
+                $response = json_decode($res->getBody());
+                if ($statusCode == 200) {
+                    if (isset($response->members)) {
+                        $total = sizeof($response->members);
+                        if ($total > 0) {
+                            foreach ($response->members as $key => $info) {
+                                if ($info->is_bot == true) {
+                                    $results['bots'][$info->id] = $info;
+                                    $results['users'][$info->id] = $info;
+                                } else {
+                                    $results['users'][$info->id] = $info;
+                                }
+                            }
+                        }
+                    }
+                } else {
+
+                }
+                if (isset($response->response_metadata->next_cursor) && $response->response_metadata->next_cursor != "") {
+                    $url = self::BASE_URL . "users.list" . "?limit=1000&token=" . $this->token . "&cursor=" . $response->response_metadata->next_cursor;
+                }else {
+                    $more = false;
+                }
+                $i++;
+            }
+            return $results;
+        }catch (\Exception $e) {
+        }
+    }
+
+    public function customGetChannels($type): array
+    {
+        $client = new \GuzzleHttp\Client();
+        $results = [];
+        $more = true;
+        $url = self::BASE_URL . "conversations.list?types=" . $type . "&limit=1000";
+        $i = 0;
+        try {
+            while ($more == true) {
+                start:
+
+                $res = $client->request('GET', $url, [
+                    'headers' => [
+                        'Content-type' => 'application/json',
+                        'Authorization' => 'Bearer ' . $this->token,
+                    ],
+                    'http_errors' => false,
+                ]);
+                $statusCode = $res->getStatusCode();
+                $response = json_decode($res->getBody());
+                if ($statusCode == 200) {
+                    if (isset($response->channels)) {
+                        $totalChannels = sizeof($response->channels);
+                        if ($totalChannels > 0) {
+                            foreach ($response->channels as $key => $channelInfo) {
+                                $results[$channelInfo->id] = $channelInfo;
+                            }
+                        }
+                    }
+                } else if ($statusCode == 429) {
+                    $sleepFor = 45;
+                    sleep(($sleepFor + 1));
+                    goto start;
+                }
+                if (isset($response->response_metadata->next_cursor) && $response->response_metadata->next_cursor != "") {
+                    $url = self::BASE_URL . "conversations.list?types=" . $type . "&limit=1000&token=" . $this->token . "&cursor=" . $response->response_metadata->next_cursor;
+                } else {
+                    $more = false;
+                }
+                if ($i % 20 == 0) {
+                    sleep(10);
+                }
+                $i++;
+            }
+            return $results;
+        }catch (\Exception $e) {
+
+        }
+
+        return $results;
     }
 }
