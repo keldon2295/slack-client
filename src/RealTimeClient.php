@@ -105,28 +105,38 @@ class RealTimeClient extends ApiClient
             $this->users[$responseData['self']['id']] = new User($this, $responseData['self']);
 
             // populate list of users
-            foreach ($responseData['users'] as $data) {
-                $this->users[$data['id']] = new User($this, $data);
+            if (isset($responseData['users'])) {
+                foreach ($responseData['users'] as $data) {
+                    $this->users[$data['id']] = new User($this, $data);
+                }
             }
 
             // populate list of channels
-            foreach ($responseData['channels'] as $data) {
-                $this->channels[$data['id']] = new Channel($this, $data);
+            if (isset($responseData['channels'])) {
+                foreach ($responseData['channels'] as $data) {
+                    $this->channels[$data['id']] = new Channel($this, $data);
+                }
             }
 
             // populate list of groups
-            foreach ($responseData['groups'] as $data) {
-                $this->groups[$data['id']] = new Group($this, $data);
+            if (isset($responseData['groups'])) {
+                foreach ($responseData['groups'] as $data) {
+                    $this->groups[$data['id']] = new Group($this, $data);
+                }
             }
 
             // populate list of dms
-            foreach ($responseData['ims'] as $data) {
-                $this->dms[$data['id']] = new DirectMessageChannel($this, $data);
+            if (isset($responseData['ims'])) {
+                foreach ($responseData['ims'] as $data) {
+                    $this->dms[$data['id']] = new DirectMessageChannel($this, $data);
+                }
             }
 
             // populate list of bots
-            foreach ($responseData['bots'] as $data) {
-                $this->bots[$data['id']] = new Bot($this, $data);
+            if (isset($responseData['bots'])) {
+                foreach ($responseData['bots'] as $data) {
+                    $this->bots[$data['id']] = new Bot($this, $data);
+                }
             }
 
             // initiate the websocket connection
@@ -555,31 +565,42 @@ class RealTimeClient extends ApiClient
         // $results = app('\App\Http\Controllers\Slack\Base')->getUsers();
         $results = $this->customGetUsers();
 
-        foreach ($results['users'] as $data) {
-            $data = (array) $data;
-            $this->users[$data['id']] = new User($this, $data);
+        if (isset($results['users']) && sizeof($results['users']) > 0) {
+            foreach ($results['users'] as $data) {
+                $data = (array) $data;
+                $this->users[$data['id']] = new User($this, $data);
+            }
         }
-        foreach ($results['bots'] as $data) {
-            $data = (array) $data;
-            $this->bots[$data['id']] = new Bot($this, $data);
+
+        if (isset($results['bots']) && sizeof($results['bots'])) {
+            foreach ($results['bots'] as $data) {
+                $data = (array) $data;
+                $this->bots[$data['id']] = new Bot($this, $data);
+            }
         }
 
         $results = $this->customGetChannels('public_channel');
-        foreach ($results as $data) {
-            $data = (array) $data;
-            $this->channels[$data['id']] = new Channel($this, $data);
+        if (isset($results) && sizeof($results)) {
+            foreach ($results as $data) {
+                $data = (array) $data;
+                $this->channels[$data['id']] = new Channel($this, $data);
+            }
         }
 
         $results = $this->customGetChannels('private_channel');
-        foreach ($results as $data) {
-            $data = (array) $data;
-            $this->groups[$data['id']] = new Group($this, $data);
+        if (isset($results) && sizeof($results)) {
+            foreach ($results as $data) {
+                $data = (array) $data;
+                $this->groups[$data['id']] = new Group($this, $data);
+            }
         }
 
         $results = $this->customGetChannels('mpim,im');
-        foreach ($results as $data) {
-            $data = (array) $data;
-            $this->dms[$data['id']] = new DirectMessageChannel($this, $data);
+        if (isset($results) && sizeof($results)) {
+            foreach ($results as $data) {
+                $data = (array) $data;
+                $this->dms[$data['id']] = new DirectMessageChannel($this, $data);
+            }
         }
 
     }
