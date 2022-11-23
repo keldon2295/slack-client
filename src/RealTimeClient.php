@@ -480,16 +480,21 @@ class RealTimeClient extends ApiClient
                     break;
 
                 case 'channel_rename':
-                    $this->channels[$payload['channel']['id']]->data['name']
-                        = $payload['channel']['name'];
+                    if (isset($this->channels[$payload['channel']['id']])) {
+                        $this->channels[$payload['channel']['id']]->data['name']
+                            = $payload['channel']['name'];
+                    }
                     break;
-
                 case 'channel_archive':
-                    $this->channels[$payload['channel']]->data['is_archived'] = true;
+                    if (isset($this->channels[$payload['channel']])) {
+                        $this->channels[$payload['channel']]->data['is_archived'] = true;
+                    }
                     break;
 
                 case 'channel_unarchive':
-                    $this->channels[$payload['channel']]->data['is_archived'] = false;
+                    if (isset($this->channels[$payload['channel']])) {
+                        $this->channels[$payload['channel']]->data['is_archived'] = false;
+                    }
                     break;
 
                 case 'group_joined':
@@ -498,17 +503,24 @@ class RealTimeClient extends ApiClient
                     break;
 
                 case 'group_rename':
-                    $this->groups[$payload['group']['id']]->data['name']
-                        = $payload['channel']['name'];
+                    if (isset($this->groups[$payload['group']['id']])) {
+                        $this->groups[$payload['group']['id']]->data['name']
+                            = $payload['channel']['name'];
+                    }
                     break;
 
                 case 'group_archive':
-                    $this->groups[$payload['group']['id']]->data['is_archived'] = true;
+                    if (isset($this->groups[$payload['group']['id']])) {
+                        $this->groups[$payload['group']['id']]->data['is_archived'] = true;
+                    }
                     break;
 
                 case 'group_unarchive':
-                    $this->groups[$payload['group']['id']]->data['is_archived'] = false;
+                    if (isset($this->groups[$payload['group']['id']])) {
+                        $this->groups[$payload['group']['id']]->data['is_archived'] = false;
+                    }
                     break;
+
 
                 case 'im_created':
                     $dm = new DirectMessageChannel($this, $payload['channel']);
