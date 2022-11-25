@@ -232,4 +232,15 @@ abstract class SlackUser
     {
         return $this->data['updated'];
     }
+
+    /**
+     * Gets the user's timezone.
+     *
+     * @return string The user's timezone, or null if no timezone is available.
+     */
+    public function getUserTimezone()
+    {
+        return isset($this->data['tz']) ? $this->data['tz'] : null;
+    }
+
 }

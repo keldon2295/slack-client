@@ -8,6 +8,7 @@ use React\Promise;
 use React\Promise\Timer;
 use React\EventLoop\LoopInterface;
 use Slack\Message\Message;
+use GuzzleHttp\Promise as GuzzlePromise;
 
 /**
  * A client for the Slack real-time messaging API.
@@ -138,7 +139,6 @@ class RealTimeClient extends ApiClient
                     $this->bots[$data['id']] = new Bot($this, $data);
                 }
             }
-
             // initiate the websocket connection
             // write PHPWS things to the existing logger
             $this->websocket = new WebSocket($responseData['url'], $this->loop, $this->logger);
@@ -149,6 +149,7 @@ class RealTimeClient extends ApiClient
             return $this->websocket->open();
         }, function($exception) use ($deferred) {
             // if connection was not succesfull
+            \Log::error('connection failed: ' . 'Could not connect to Slack API: '. $exception->getMessage());
             $deferred->reject(new ConnectionException(
                 'Could not connect to Slack API: '. $exception->getMessage(),
                 $exception->getCode()
@@ -289,7 +290,6 @@ class RealTimeClient extends ApiClient
         if (!$this->connected) {
             return Promise\reject(new ConnectionException('Client not connected. Did you forget to call `connect()`?'));
         }
-
         return Promise\resolve(array_values($this->users));
     }
 
@@ -298,15 +298,14 @@ class RealTimeClient extends ApiClient
      */
     public function getUserById($id)
     {
-        if (!$this->connected) {
-            return Promise\reject(new ConnectionException('Client not connected. Did you forget to call `connect()`?'));
-        }
+        try {
+            if (!isset($this->users[$id])) {
+                return Promise\reject(new ApiException("No User exists for ID '$id'."));
+            }
+            return Promise\resolve($this->users[$id]);
+        }catch (\Exception $e) {
 
-        if (!isset($this->users[$id])) {
-            return Promise\reject(new ApiException("No user exists for ID '$id'."));
         }
-
-        return Promise\resolve($this->users[$id]);
     }
 
     /**
@@ -323,13 +322,13 @@ class RealTimeClient extends ApiClient
         return Promise\resolve(array_values($this->bots));
     }
 
-    /**
-     * Gets a bot by its ID.
-     *
-     * @param string $id A bot ID.
-     *
-     * @return \React\Promise\PromiseInterface A promise for a bot object.
-     */
+    // /**
+    //  * Gets a bot by its ID.
+    //  *
+    //  * @param string $id A bot ID.
+    //  *
+    //  * @return \React\Promise\PromiseInterface A promise for a bot object.
+    //  */
     public function getBotById($id)
     {
         if (!$this->connected) {
@@ -480,19 +479,26 @@ class RealTimeClient extends ApiClient
                     break;
 
                 case 'channel_rename':
-                    if (isset($this->channels[$payload['channel']['id']])) {
+                    if (!isset($this->channels[$payload['channel']['id']])) {
+
+                    }else {
                         $this->channels[$payload['channel']['id']]->data['name']
-                            = $payload['channel']['name'];
+                        = $payload['channel']['name'];
                     }
                     break;
+
                 case 'channel_archive':
-                    if (isset($this->channels[$payload['channel']])) {
+                    if (!isset($this->channels[$payload['channel']])) {
+
+                    }else {
                         $this->channels[$payload['channel']]->data['is_archived'] = true;
                     }
                     break;
 
                 case 'channel_unarchive':
-                    if (isset($this->channels[$payload['channel']])) {
+                    if (!isset($this->channels[$payload['channel']])) {
+
+                    }else {
                         $this->channels[$payload['channel']]->data['is_archived'] = false;
                     }
                     break;
@@ -503,24 +509,17 @@ class RealTimeClient extends ApiClient
                     break;
 
                 case 'group_rename':
-                    if (isset($this->groups[$payload['group']['id']])) {
-                        $this->groups[$payload['group']['id']]->data['name']
-                            = $payload['channel']['name'];
-                    }
+                    $this->groups[$payload['channel']['id']]->data['name']
+                        = $payload['channel']['name'];
                     break;
 
                 case 'group_archive':
-                    if (isset($this->groups[$payload['group']['id']])) {
-                        $this->groups[$payload['group']['id']]->data['is_archived'] = true;
-                    }
+                    $this->groups[$payload['channel']]->data['is_archived'] = true;
                     break;
 
                 case 'group_unarchive':
-                    if (isset($this->groups[$payload['group']['id']])) {
-                        $this->groups[$payload['group']['id']]->data['is_archived'] = false;
-                    }
+                    $this->groups[$payload['channel']]->data['is_archived'] = false;
                     break;
-
 
                 case 'im_created':
                     $dm = new DirectMessageChannel($this, $payload['channel']);
@@ -577,42 +576,31 @@ class RealTimeClient extends ApiClient
         // $results = app('\App\Http\Controllers\Slack\Base')->getUsers();
         $results = $this->customGetUsers();
 
-        if (isset($results['users']) && sizeof($results['users']) > 0) {
-            foreach ($results['users'] as $data) {
-                $data = (array) $data;
-                $this->users[$data['id']] = new User($this, $data);
-            }
+        foreach ($results['users'] as $data) {
+            $data = (array) $data;
+            $this->users[$data['id']] = new User($this, $data);
         }
-
-        if (isset($results['bots']) && sizeof($results['bots'])) {
-            foreach ($results['bots'] as $data) {
-                $data = (array) $data;
-                $this->bots[$data['id']] = new Bot($this, $data);
-            }
+        foreach ($results['bots'] as $data) {
+            $data = (array) $data;
+            $this->bots[$data['id']] = new Bot($this, $data);
         }
 
         $results = $this->customGetChannels('public_channel');
-        if (isset($results) && sizeof($results)) {
-            foreach ($results as $data) {
-                $data = (array) $data;
-                $this->channels[$data['id']] = new Channel($this, $data);
-            }
+        foreach ($results as $data) {
+            $data = (array) $data;
+            $this->channels[$data['id']] = new Channel($this, $data);
         }
 
         $results = $this->customGetChannels('private_channel');
-        if (isset($results) && sizeof($results)) {
-            foreach ($results as $data) {
-                $data = (array) $data;
-                $this->groups[$data['id']] = new Group($this, $data);
-            }
+        foreach ($results as $data) {
+            $data = (array) $data;
+            $this->groups[$data['id']] = new Group($this, $data);
         }
 
         $results = $this->customGetChannels('mpim,im');
-        if (isset($results) && sizeof($results)) {
-            foreach ($results as $data) {
-                $data = (array) $data;
-                $this->dms[$data['id']] = new DirectMessageChannel($this, $data);
-            }
+        foreach ($results as $data) {
+            $data = (array) $data;
+            $this->dms[$data['id']] = new DirectMessageChannel($this, $data);
         }
 
     }
@@ -621,7 +609,7 @@ class RealTimeClient extends ApiClient
         $client = new \GuzzleHttp\Client();
         $results = [];
         $more = true;
-        $url = self::BASE_URL . "users.list" . "?limit=1000";
+        $url = "https://slack.com/api/users.list" . "?limit=10000";
         $i = 0;
         try {
             while ($more == true) {
@@ -653,9 +641,12 @@ class RealTimeClient extends ApiClient
 
                 }
                 if (isset($response->response_metadata->next_cursor) && $response->response_metadata->next_cursor != "") {
-                    $url = self::BASE_URL . "users.list" . "?limit=1000&token=" . $this->token . "&cursor=" . $response->response_metadata->next_cursor;
+                    $url = "https://slack.com/api/users.list" . "?limit=10000&token=" . $this->token . "&cursor=" . $response->response_metadata->next_cursor;
                 }else {
                     $more = false;
+                }
+                if($i % 5 == 0) {
+                    // sleep(8);
                 }
                 $i++;
             }
@@ -669,7 +660,7 @@ class RealTimeClient extends ApiClient
         $client = new \GuzzleHttp\Client();
         $results = [];
         $more = true;
-        $url = self::BASE_URL . "conversations.list?types=" . $type . "&limit=1000";
+        $url = "https://slack.com/api/conversations.list?types=" . $type . "&limit=1000";
         $i = 0;
         try {
             while ($more == true) {
@@ -699,11 +690,11 @@ class RealTimeClient extends ApiClient
                     goto start;
                 }
                 if (isset($response->response_metadata->next_cursor) && $response->response_metadata->next_cursor != "") {
-                    $url = self::BASE_URL . "conversations.list?types=" . $type . "&limit=1000&token=" . $this->token . "&cursor=" . $response->response_metadata->next_cursor;
-                } else {
+                    $url = "https://slack.com/api/conversations.list?types=" . $type . "&limit=1000&token=" . $this->token . "&cursor=" . $response->response_metadata->next_cursor;
+                }else {
                     $more = false;
                 }
-                if ($i % 20 == 0) {
+                if($i % 20 == 0) {
                     sleep(10);
                 }
                 $i++;

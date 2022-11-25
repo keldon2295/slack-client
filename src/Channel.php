@@ -33,7 +33,10 @@ class Channel extends ClientObject implements ChannelInterface
      */
     public function getPurpose()
     {
-        return $this->data['purpose']['value'];
+        if (gettype($this->data['purpose']) == 'array') {
+            return $this->data['purpose']['value'] ?? "";
+        }
+        return $this->data['purpose']->value ?? "";
     }
 
     /**
@@ -43,7 +46,10 @@ class Channel extends ClientObject implements ChannelInterface
      */
     public function getTopic()
     {
-        return $this->data['topic']['value'];
+        if (gettype($this->data['topic']) == 'array') {
+            return $this->data['topic']['value'] ?? "";
+        }
+        return $this->data['topic']->value ?? "";
     }
 
     /**
@@ -55,10 +61,11 @@ class Channel extends ClientObject implements ChannelInterface
     public function getMembers()
     {
         $memberPromises = [];
-        foreach ($this->data['members'] as $memberId) {
-            $memberPromises[] = $this->client->getUserById($memberId);
+        if (isset($this->data['members'])) {
+            foreach ($this->data['members'] as $memberId) {
+                $memberPromises[] = $this->client->getUserById($memberId);
+            }
         }
-
         return Promise\all($memberPromises);
     }
 
